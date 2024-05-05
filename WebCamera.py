@@ -3,13 +3,16 @@
 # Description: This program uses OpenCV to interact with the web camera. It includes functionality to capture video and process it in real-time.
 # E-mail:qaz442200156@gmail.com
 
-import cv2 as cv
 import os
+import time
+import cv2
+import cvlib as cv
+from cvlib.object_detection import draw_bbox
 from datetime import datetime
 
 # opencv reference https://docs.opencv.org/4.x/dd/d43/tutorial_py_video_display.html
-
-print(f"OpenCv Version:{cv.__version__}")
+# YT reference https://youtu.be/V62M9d8QkYM?feature=shared
+print(f"OpenCv Version:{cv2.__version__}")
 
 def get_current_time():
     return datetime.now().strftime('%Y_%m_%d-%H-%M-%S')
@@ -48,19 +51,23 @@ def capture_frame(cap_machine):
 def process_mirror_frame(frame):
     if is_mirror_flip:
         '''            
-        # cv.flip(frame, 1) flip with y (horizontal flip)
-        # cv.flip(frame, 0) flip with x (vertical flip)
-        # cv.flip(frame, -1) flip with both x,y
+        # cv2.flip(frame, 1) flip with y (horizontal flip)
+        # cv2.flip(frame, 0) flip with x (vertical flip)
+        # cv2.flip(frame, -1) flip with both x,y
         '''
-        frame = cv.flip(frame, 1)
+        frame = cv2.flip(frame, 1)
     return frame
     
-def display_frame(frame, title='title'):
-    cv.imshow(title, frame)
+def display_frame(frame,detection_frame, title=None):
+    if is_take_any_webcame_action or is_recording or is_time_recording:
+        cv2.imshow("On Recording" if title is None else title, frame)
+    else:
+        cv2.imshow("On Detection" if title is None else title, detection_frame)
 
 def get_new_video_writer(save_video):
     file_name = save_video.get_save_path()
-    return file_name,cv.VideoWriter(file_name, video_fourcc,video_fps,(video_original_rect.width,video_original_rect.height))
+    video = cv2.VideoWriter(file_name, video_fourcc,video_fps,(video_original_rect.width,video_original_rect.height))
+    return file_name,video
 
 def try_write_frame(frame):
     if is_recording and video is not None:
@@ -91,11 +98,36 @@ def release_resource(cap_machine):
         video.release()
     if time_video is not None:
         time_video.release()
-    cv.destroyAllWindows()
+    cv2.destroyAllWindows()
 # ---------------------
 # endregion
 # ---------------------
 
+# ---------------------
+# region OpenCv Object Detection
+# ---------------------
+def object_detection(frame):
+    if is_take_any_webcame_action or is_recording or is_time_recording:
+        return frame,frame, None
+    bbox, label, conf = cv.detect_common_objects(frame)
+    output_image = draw_bbox(frame, bbox, label, conf)
+    return frame,output_image,label
+
+def process_object_detection(label):
+    global time_video_recording_time_duration
+    if label is None:
+        return False
+    
+    '''    
+    for item in label:
+        Do something special when item is __
+    '''
+    return False
+
+# ---------------------
+# endregion
+# ---------------------
+    
 # ---------------------
 # region Actions(Record,Time Record, SnapShot)
 # ---------------------
@@ -104,14 +136,14 @@ def process_recording():
     global video
     global is_recording
     global video_filename
-    is_recording,video,video_filename = change_record_state(is_recording,video,save_video_name,video_filename)
+    is_recording,video,video_filename = change_record_state(is_recording,video,save_video_name, video_filename)
 
 def process_time_recording():
     global time_video
     global is_time_recording
     global time_video_start_time
     global time_video_filename
-    is_time_recording,time_video,time_video_filename = change_record_state(is_time_recording,time_video,save_time_video_name,time_video_filename)
+    is_time_recording,time_video,time_video_filename = change_record_state(is_time_recording,time_video,save_time_video_name, time_video_filename)
     if is_time_recording:
         time_video_start_time = datetime.now()
 
@@ -123,13 +155,18 @@ def process_time_recording_passed_time():
     if passed_time.total_seconds() > time_video_recording_time_duration:
         time_video_recording_time_duration = 0
         process_time_recording()
+        cv2.destroyAllWindows()
     else:        
         print(f"Time remain:{(time_video_recording_time_duration - passed_time.total_seconds()):.2f}")
 
-def take_snapshot(frame):
+def take_snapshot():
     snapshot_filename = save_image_name.get_save_path()
     print(f"snapshot saved at :{snapshot_filename}")
-    cv.imwrite(snapshot_filename,frame)
+    frame = capture_frame(cap_machine)
+    if frame is None:
+        return
+    frame = process_mirror_frame(frame)
+    cv2.imwrite(snapshot_filename,frame)
 
 # ---------------------
 # endregion
@@ -139,10 +176,11 @@ def take_snapshot(frame):
 # region Keyboard Input
 # ---------------------
 
-def read_key(frame):
+def read_key():
     global time_video_recording_time_duration
+    global is_take_any_webcame_action
     # Current keyboard input
-    key = cv.waitKey(1)
+    key = cv2.waitKey(1)
     if key != -1:# Show input key value
         print(f"Passed Key => int:{key} char:{chr(key)}")
     # if not passed any key will return -1 as default
@@ -150,9 +188,11 @@ def read_key(frame):
     if key == ord('q'): # exit
         return True
     elif key == ord('r'): # start/stop recording
+        is_take_any_webcame_action = True
         process_recording()
     elif key == ord('s'): # take snapshot
-        take_snapshot(frame)
+        is_take_any_webcame_action = True
+        take_snapshot()
     elif not is_time_recording: # start/stop time recording
         if key == ord('0'):
             time_video_recording_time_duration = 10
@@ -163,7 +203,10 @@ def read_key(frame):
         if key == ord('8'):            
             time_video_recording_time_duration = 8
         if time_video_recording_time_duration > 0:
-            process_time_recording()            
+            is_take_any_webcame_action = True
+            process_time_recording()
+    if is_take_any_webcame_action:
+        cv2.destroyAllWindows()
     return False
 
 # ---------------------
@@ -197,21 +240,22 @@ class SaveFormat:
 # ---------------------
 # region Data
 # ---------------------
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 # --- Save File ---
 save_video_name = SaveFormat('data/Video/','Video','avi')
 save_time_video_name = SaveFormat('data/TimeVideo/','TimeVideo','avi')
 save_image_name = SaveFormat('data/SnapShot/','SnapShot','jpg')
 # --- Web Cam machine ---
-cap_machine = cv.VideoCapture(1)
+cap_machine = cv2.VideoCapture(1)
 
 # --- Frame Format ---
 # Frame Size(Default)
-video_original_rect = Rect(int(cap_machine.get(cv.CAP_PROP_FRAME_WIDTH)),int(cap_machine.get(cv.CAP_PROP_FRAME_HEIGHT)))
+video_original_rect = Rect(int(cap_machine.get(cv2.CAP_PROP_FRAME_WIDTH)),int(cap_machine.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 # Framerate
 video_fps = 30.0
 # Video format
-video_fourcc = cv.VideoWriter_fourcc(*'XVID')
+video_fourcc = cv2.VideoWriter_fourcc(*'XVID')
 
 # --- Recording ---
 # Video writer
@@ -236,12 +280,15 @@ is_recording = False
 is_time_recording = False
 # Is use mirror frame or not
 is_mirror_flip = True
+# Is on take snapshot
+is_take_any_webcame_action = False
 
 # ---------------------
 # endregion
 # ---------------------
 
 def main():
+    global is_take_any_webcame_action
     if not cap_machine.isOpened():
         print("Cannot open camera")
         exit()
@@ -250,8 +297,19 @@ def main():
         frame = capture_frame(cap_machine)
         if frame is None:
             break
+                    
+        if is_take_any_webcame_action:
+            is_take_any_webcame_action = False
+            continue
         # Check is use mirror to flip frame
         frame = process_mirror_frame(frame)
+
+        # Object Detection
+        frame,detection_frame,label = object_detection(frame)
+
+        # Process object detection and do something
+        if process_object_detection(label):
+            continue
 
         # If on recording and try write current frame into video file
         try_write_frame(frame)
@@ -260,10 +318,10 @@ def main():
         process_time_recording_passed_time()
 
         # Show live video 
-        display_frame(frame)
+        display_frame(frame, detection_frame)
 
         # Check keyboard input
-        if read_key(frame):
+        if read_key():
             break
 
     # Release eversything if job is finished
