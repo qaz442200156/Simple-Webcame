@@ -60,7 +60,7 @@ def display_frame(frame, title='title'):
 
 def get_new_video_writer(save_video):
     file_name = save_video.get_save_path()
-    return file_name,cv.VideoWriter(video_filename, video_fourcc,video_fps,(video_original_rect.width,video_original_rect.height))
+    return file_name,cv.VideoWriter(file_name, video_fourcc,video_fps,(video_original_rect.width,video_original_rect.height))
 
 def try_write_frame(frame):
     if is_recording and video is not None:
@@ -68,15 +68,15 @@ def try_write_frame(frame):
     if is_time_recording and time_video is not None:
         time_video.write(frame)
 
-def change_record_state(recording_flag, target_video, save_video):
+def change_record_state(recording_flag, target_video, save_video, saved_filename):
     next_recording_flag = recording_flag is not True
     print("Start Recording" if next_recording_flag else "Stop Recording")
     if next_recording_flag:
         if target_video is not None:
             target_video.release()
-        video,file_name = get_new_video_writer(save_video)
+        file_name,video = get_new_video_writer(save_video)
     else:
-        print(f"video file saved at :{video_filename}")
+        print(f"video file saved at :{saved_filename}")
         if target_video is not None:
             target_video.release()
         video = None
@@ -104,14 +104,14 @@ def process_recording():
     global video
     global is_recording
     global video_filename
-    is_recording,video,video_filename = change_record_state(is_recording,video,save_video_name)
+    is_recording,video,video_filename = change_record_state(is_recording,video,save_video_name,video_filename)
 
 def process_time_recording():
     global time_video
     global is_time_recording
     global time_video_start_time
     global time_video_filename
-    is_time_recording,time_video,time_video_filename = change_record_state(is_time_recording,time_video,save_time_video_name)
+    is_time_recording,time_video,time_video_filename = change_record_state(is_time_recording,time_video,save_time_video_name,time_video_filename)
     if is_time_recording:
         time_video_start_time = datetime.now()
 
@@ -203,7 +203,7 @@ save_video_name = SaveFormat('data/Video/','Video','avi')
 save_time_video_name = SaveFormat('data/TimeVideo/','TimeVideo','avi')
 save_image_name = SaveFormat('data/SnapShot/','SnapShot','jpg')
 # --- Web Cam machine ---
-cap_machine = cv.VideoCapture(0)
+cap_machine = cv.VideoCapture(1)
 
 # --- Frame Format ---
 # Frame Size(Default)
