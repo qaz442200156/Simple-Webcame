@@ -247,7 +247,7 @@ save_video_name = SaveFormat('data/Video/','Video','avi')
 save_time_video_name = SaveFormat('data/TimeVideo/','TimeVideo','avi')
 save_image_name = SaveFormat('data/SnapShot/','SnapShot','jpg')
 # --- Web Cam machine ---
-cap_machine = cv2.VideoCapture(1)
+cap_machine = cv2.VideoCapture(0)
 
 # --- Frame Format ---
 # Frame Size(Default)
