@@ -1,10 +1,24 @@
 # WebCamera Program
 
-This program uses OpenCV to interact with the web camera. It includes functionality to capture video, process it in real-time, and handle time-based recording.
+This program uses OpenCV to interact with the web camera. It includes functionality to capture video, object detection, process it in real-time, and handle time-based recording.
 
 ## Dependencies
 - Python 3
 - OpenCV (cv2)
+- cvlib
+
+### Prerequisites
+
+You will need Python 3 and the following libraries installed:
+
+- OpenCV
+- cvlib
+
+You can install these using pip:
+
+```bash
+pip install opencv-python cvlib
+```
 
 ## Features
 - Real-time video capture: The program captures video from the web camera in real-time.
@@ -26,6 +40,22 @@ This program uses OpenCV to interact with the web camera. It includes functional
     - s : Take Snapshot
     - r : Start/Stop Recoding
     - q : Exit
+
+## Custom Object Detection Process
+
+```Python
+def process_object_detection(label):
+    global time_video_recording_time_duration
+    if label is None:
+        return False
+    
+    '''    
+    for item in label:
+        Do something special when item is __
+    '''
+    return False
+```
+
 
 ## References
 - [OpenCV Documentation](https://docs.opencv.org/4.x/dd/d43/tutorial_py_video_display.html)
