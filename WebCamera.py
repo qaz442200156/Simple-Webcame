@@ -78,14 +78,14 @@ def try_write_frame(frame):
 def change_record_state(recording_flag, target_video, save_video, saved_filename):
     next_recording_flag = recording_flag is not True
     print("Start Recording" if next_recording_flag else "Stop Recording")
+    
+    if target_video is not None:
+        target_video.release()
+        
     if next_recording_flag:
-        if target_video is not None:
-            target_video.release()
         file_name,video = get_new_video_writer(save_video)
     else:
         print(f"video file saved at :{saved_filename}")
-        if target_video is not None:
-            target_video.release()
         video = None
         file_name = None
     return next_recording_flag, video, file_name
@@ -309,6 +309,7 @@ def main():
 
         # Process object detection and do something
         if process_object_detection(label):
+            cv2.destroyAllWindows()
             continue
 
         # If on recording and try write current frame into video file
